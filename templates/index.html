@@ -1,0 +1,149 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wine Quality Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, rgba(99, 102, 241, 0.22), transparent 25%), linear-gradient(180deg, #0f172a 0%, #020617 100%); }
+    a { color: #7dd3fc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .page { width: min(1200px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0; }
+    .topbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 28px; }
+    .brand { display: grid; gap: 8px; }
+    .brand h1 { margin: 0; font-size: clamp(2rem, 3vw, 2.8rem); letter-spacing: -0.04em; }
+    .brand p { margin: 0; color: #cbd5e1; max-width: 760px; line-height: 1.75; }
+    .status-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(148, 163, 184, 0.2); font-weight: 600; }
+    .status-pill::before { content: ''; width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2); }
+    .status-pill.offline::before { background: #f97316; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2); }
+    .grid { display: grid; gap: 24px; grid-template-columns: 1.6fr 1fr; }
+    .card { background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 28px; box-shadow: 0 28px 90px rgba(15, 23, 42, 0.35); overflow: hidden; }
+    .card-inner { padding: 28px; }
+    .card h2 { margin: 0 0 14px; color: #f8fafc; font-size: 1.55rem; }
+    .card p { margin: 0 0 18px; line-height: 1.75; color: #cbd5e1; }
+    .field-grid { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .field { display: grid; gap: 8px; }
+    label { font-size: 0.95rem; color: #cbd5e1; font-weight: 700; }
+    input, textarea { width: 100%; border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 16px; background: rgba(15, 23, 42, 0.85); color: #e2e8f0; padding: 14px 16px; font-size: 0.95rem; }
+    textarea { min-height: 190px; font-family: 'Inter', 'Segoe UI', sans-serif; resize: vertical; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 20px; border-radius: 14px; border: none; background: linear-gradient(135deg, #4f46e5, #38bdf8); color: #f8fafc; font-weight: 700; cursor: pointer; transition: transform .2s ease, filter .2s ease; }
+    .button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .message { border-radius: 18px; padding: 18px 20px; margin-bottom: 20px; font-size: 0.98rem; line-height: 1.6; }
+    .success { background: rgba(22, 163, 74, 0.12); color: #a7f3d0; border: 1px solid rgba(22, 163, 74, 0.3); }
+    .error { background: rgba(248, 113, 113, 0.12); color: #fecaca; border: 1px solid rgba(248, 113, 113, 0.3); }
+    .card-grid { display: grid; gap: 18px; }
+    pre { margin: 0; overflow-x: auto; background: rgba(15, 23, 42, 0.7); border-radius: 16px; padding: 16px; border: 1px solid rgba(148, 163, 184, 0.14); color: #e2e8f0; }
+    .hint { color: #94a3b8; font-size: 0.95rem; }
+    @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } .field-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Wine Quality Dashboard</h1>
+        <p>Tu peux garder l’interface MLflow disponible sur le port 5000 et utiliser cette UI dédiée pour prédire et tester l’API.</p>
+      </div>
+      <div class="status-pill {{ 'offline' if not mlflow_online else '' }}">
+        Statut MLflow : {{ 'En ligne' if mlflow_online else 'Hors ligne' }}
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-inner">
+          <h2>Prédiction</h2>
+          <p>Utilise le formulaire ci-dessous pour envoyer les valeurs et obtenir un score de qualité de vin en direct.</p>
+
+          {% if error %}
+            <div class="message error">{{ error }}</div>
+          {% endif %}
+          {% if prediction is not none %}
+            <div class="message success">Qualité prédite du vin&nbsp;: <strong>{{ prediction }}</strong></div>
+          {% endif %}
+
+          <form method="post">
+            <div class="field-grid">
+              {% for key, label, default in features %}
+                <div class="field">
+                  <label for="{{ key }}">{{ label }}</label>
+                  <input type="text" id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" />
+                </div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="button">Prédire maintenant</button>
+          </form>
+
+          <div class="hint">La prédiction utilise le modèle chargé depuis <code>mlruns/0/.../model.joblib</code>. Si MLflow est en ligne, tu peux ouvrir son interface depuis le panneau de droite.</div>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-inner">
+            <h2>API test</h2>
+            <p>Tape ton JSON, puis clique sur « Tester l’API » pour envoyer la requête au backend.</p>
+            <textarea id="api-json">{
+  "fixed_acidity": "7.4",
+  "volatile_acidity": "0.70",
+  "citric_acid": "0.00",
+  "residual_sugar": "1.9",
+  "chlorides": "0.076",
+  "free_sulfur_dioxide": "11",
+  "total_sulfur_dioxide": "34",
+  "density": "0.9978",
+  "pH": "3.51",
+  "sulphates": "0.56",
+  "alcohol": "9.4"
+}</textarea>
+            <button class="button" id="api-test-btn" type="button">Tester l’API</button>
+            <div class="hint" style="margin-top: 16px;">Le résultat s’affichera juste en dessous sans recharger la page.</div>
+            <pre id="api-response" style="margin-top: 18px; min-height: 140px;">Réponse API ici...</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <h2>MLflow</h2>
+            <p>Le serveur MLflow reste séparé. Si tu veux voir les expériences et les runs, ouvre l’interface suivante :</p>
+            <p><a href="{{ mlflow_url }}" target="_blank">{{ mlflow_url }}</a></p>
+            <p class="hint">Si MLflow n’est pas disponible, lance-le sur le port 5000 avec <code>mlflow ui --port 5000</code>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function testApi() {
+      const button = document.getElementById('api-test-btn');
+      const responseBox = document.getElementById('api-response');
+      button.disabled = true;
+      button.textContent = 'Envoi en cours...';
+      try {
+        const payload = JSON.parse(document.getElementById('api-json').value);
+        const response = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        responseBox.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        responseBox.textContent = 'Erreur: ' + err.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Tester l’API';
+      }
+    }
+    document.getElementById('api-test-btn').addEventListener('click', testApi);
+  </script>
+</body>
+</html>
