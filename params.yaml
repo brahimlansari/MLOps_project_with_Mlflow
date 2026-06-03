@@ -1,0 +1,5 @@
+ElasticNet:
+  alpha: 0.2
+  l1_ratio: 0.1
+  alpha_grid: [0.1, 0.2, 0.5, 1.0]
+  l1_ratio_grid: [0.1, 0.5, 0.9]
